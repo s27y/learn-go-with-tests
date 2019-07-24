@@ -15,6 +15,7 @@ var dummyStdIn = &bytes.Buffer{}
 var dummyStdOut = &bytes.Buffer{}
 
 func assertGameStartedWith(t *testing.T, game *poker.GameSpy, numerOfPlayers int) {
+	t.Helper()
 	if game.StartedWith != numerOfPlayers {
 		t.Errorf("wanted Start called with %d but got %d", numerOfPlayers, game.StartedWith)
 	}
@@ -25,19 +26,18 @@ func userSends(messages ...string) io.Reader {
 }
 
 func assertFinishCalledWith(t *testing.T, game *poker.GameSpy, winner string) {
+	t.Helper()
 	if game.FinishedWith != winner {
-		t.Errorf("wanted Finished with %s but got %s", winner, game.FinishedWith)
+		t.Errorf("wanted Finished with %q but got %q", winner, game.FinishedWith)
 	}
 }
 func TestCLI(t *testing.T) {
 	t.Run("start game with 3 players and finish game with 'Chris' as winner", func(t *testing.T) {
 		game := &poker.GameSpy{}
 		stdout := &bytes.Buffer{}
-
 		in := userSends("3", "Chris wins")
-		cli := poker.NewCLI(in, stdout, game)
 
-		cli.PlayPoker()
+		poker.NewCLI(in, stdout, game).PlayPoker()
 
 		assertMessagesSentToUser(t, stdout, poker.PlayerPrompt)
 		assertGameStartedWith(t, game, 3)
@@ -64,10 +64,11 @@ func TestCLI(t *testing.T) {
 		cli := poker.NewCLI(in, stdout, game)
 		cli.PlayPoker()
 
-		assertGameStartedWith(t, game)
+		assertGameStartedWith(t, game, 0)
 		assertMessagesSentToUser(t, stdout, poker.PlayerPrompt, poker.BadPlayerInputErrMsg)
 
 	})
+
 }
 
 func assertMessagesSentToUser(t *testing.T, stdout *bytes.Buffer, messages ...string) {
