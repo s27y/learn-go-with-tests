@@ -120,20 +120,26 @@ func TestGame(t *testing.T) {
 
 		assertStatus(t, response, http.StatusOK)
 	})
-	t.Run("start a game with 3 players and declare Ruth the winner", func(t *testing.T) {
-		game := &poker.GameSpy{}
+	t.Run("start a game with 3 players, send some blind alerts down WS and declare Ruth the winner", func(t *testing.T) {
+		wantedBlindAlert := "Blind is 100"
 		winner := "Ruth"
+		tenMS := 10 * time.Millisecond
+
+		game := &poker.GameSpy{BlindAlert: []byte(wantedBlindAlert)}
 		server := httptest.NewServer(mustMakePlayerServer(t, dummyPlayerStore, game))
 		ws := mustDialWS(t, "ws"+strings.TrimPrefix(server.URL, "http")+"/ws")
+
 		defer server.Close()
 		defer ws.Close()
 
 		writeWSMessage(t, ws, "3")
 		writeWSMessage(t, ws, winner)
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(tenMS)
+
 		assertGameStartedWith(t, game, 3)
 		assertFinishCalledWith(t, game, winner)
+		within(t, tenMS, func() { assertWebsocketGotMsg(t, ws, wantedBlindAlert) })
 	})
 }
 
@@ -183,4 +189,38 @@ func assertContentType(t *testing.T, response *httptest.ResponseRecorder, want s
 	if response.Result().Header.Get("content-type") != want {
 		t.Errorf("response did not have content-type of application/json, got %v", response.Result().Header)
 	}
+}
+
+func within(t *testing.T, d time.Duration, assert func()) {
+	t.Helper()
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		assert()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-time.After(d):
+		t.Error("timed out")
+	case <-done:
+	}
+}
+
+func assertWebsocketGotMsg(t *testing.T, ws *websocket.Conn, want string) {
+	_, msg, _ := ws.ReadMessage()
+	if string(msg) != want {
+		t.Errorf("got %q want %q", string(msg), want)
+	}
+}
+
+func retryUntil(d time.Duration, f func() bool) bool {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if f() {
+			return true
+		}
+	}
+	return false
 }

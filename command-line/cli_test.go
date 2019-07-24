@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	poker "github.com/s27y/learn-go-with-tests/command-line"
 )
@@ -27,10 +28,16 @@ func userSends(messages ...string) io.Reader {
 
 func assertFinishCalledWith(t *testing.T, game *poker.GameSpy, winner string) {
 	t.Helper()
-	if game.FinishedWith != winner {
-		t.Errorf("wanted Finished with %q but got %q", winner, game.FinishedWith)
+
+	passed := retryUntil(500*time.Millisecond, func() bool {
+		return game.FinishedWith == winner
+	})
+
+	if !passed {
+		t.Errorf("expected finish called with %q but got %q", winner, game.FinishedWith)
 	}
 }
+
 func TestCLI(t *testing.T) {
 	t.Run("start game with 3 players and finish game with 'Chris' as winner", func(t *testing.T) {
 		game := &poker.GameSpy{}

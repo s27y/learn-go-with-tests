@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -86,7 +85,7 @@ func (p *PlayerServer) webSocket(w http.ResponseWriter, r *http.Request) {
 
 	numberOfPlayersMsg := ws.WaitForMsg()
 	numberOfPlayers, _ := strconv.Atoi(string(numberOfPlayersMsg))
-	p.game.Start(numberOfPlayers, ioutil.Discard) //todo: Dont discard the blinds messages!
+	p.game.Start(numberOfPlayers, ws) //todo: Dont discard the blinds messages!
 
 	winner := ws.WaitForMsg()
 	p.game.Finish(string(winner))
